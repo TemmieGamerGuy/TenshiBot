@@ -131,6 +131,88 @@ class ImageCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def imagefetch(self, ctx, char, em, rng=1):
+        if rng==1:
+            score_rng = random.randint(0, 5)
+            char = char + str(score_rng)
+            print(score_rng)
+        # check if Tenshi has a flag enabled or not
+        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
+        if moderate_role in ctx.guild.me.roles:
+            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
+            embed_name = 'Character image'
+            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
+        else:
+            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
+            embed_name = 'Character image'
+        async with aiohttp.ClientSession() as session:
+            async with session.get(booruurl) as r:
+                # print(booruurl)
+                if r.status == 200:
+                    soup = BeautifulSoup(await r.text(), "lxml")
+                    num = int(soup.find('posts')['count'])
+                    maxpage = int(round(num / 100))
+                    page = random.randint(0, maxpage)
+                    t = soup.find('posts')
+                    p = t.find_all('post')
+                    source = ((soup.find('post'))['source'])
+                    if num < 100:
+                        pic = p[random.randint(0, num - 1)]
+                    elif page == maxpage:
+                        pic = p[random.randint(0, 99)]
+                    else:
+                        pic = p[random.randint(0, 99)]
+                    msg = pic['file_url']
+                    sbooru_id = pic['id']
+                    sbooru_tags = pic['tags']
+                    sbooru_sauce = pic['source']
+                    # sbooru_sauce = "https://i.pximg.net/img-original/img/2020/12/25/18/14/37/86528174_p0.png"
+                    img_width = pic['width']
+                    img_height = pic['height']
+                    creator = pic['creator_id']
+                    if sbooru_sauce == '':
+                        sbooru_sauce = 'No source listed'
+                    if "hentai" in sbooru_sauce:
+                        sbooru_sauce = "Source hidden\n(NSFW website)"
+                    if "pixiv" in sbooru_sauce:
+                        # if "img" in sbooru_sauce:
+                        # extract pixiv id
+                        # pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
+                        # print (pixivid)
+                        # reconstruct pixiv url
+                        # sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
+                        # else:
+                        # sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
+                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
+                    if "twitter" in sbooru_sauce:
+                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
+                    if "nicovideo" in sbooru_sauce:
+                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
+                    if "deviantart" in sbooru_sauce:
+                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
+                    # try to detect pixiv direct image links
+                    # if "img" in sbooru_sauce:
+                    # extract pixiv id
+                    # pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
+                    # check if there's an actual pixiv id in the source link or not
+                    # if pixivid == "":
+                    # sbooru_sauce = "[Source](" + sbooru_sauce + ")"
+                    # else:
+                    # reconstruct pixiv url
+                    # sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
+                    # else:
+                    # sbooru_sauce = "[Source](" + sbooru_sauce + ")"
+                    # em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
+                    em.set_author(name=embed_name)
+                    em.set_image(url=booruappend + msg)
+                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)
+                    em.add_field(name=idtext, value=sbooru_id, inline=True)
+                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
+                    # em.add_field(name="RNG", value=score_rng, inline=True)
+                    await asyncio.sleep(0.15)
+                    sbooru_img = await ctx.send(embed=em)
+
+
 #landscape
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
@@ -304,246 +386,25 @@ class ImageCog(commands.Cog):
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def reimu(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0xb50404)
-        char = 'Hakurei_Reimu+score:>=' + str(score_rng)
-        print(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                #print(booruurl)
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    #sbooru_sauce = "https://i.pximg.net/img-original/img/2020/12/25/18/14/37/86528174_p0.png"
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                            #sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #check if there's an actual pixiv id in the source link or not
-                        #if pixivid == "":
-                            #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                        #else:
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="RNG", value=score_rng, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)  
-					
-					
+        char = 'Hakurei_Reimu+score:>='
+        await self.imagefetch(ctx, char, em)
+
+
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def marisa(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0xf5e942)
-        char = 'kirisame_marisa+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="RNG", value=score_rng, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        char = 'kirisame_marisa+score:>='
+        await self.imagefetch(ctx, char, em)
 
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def tenshi(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
-        char = 'hinanawi_tenshi+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="RNG", value=score_rng, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        char = 'hinanawi_tenshi+score:>='
+        await self.imagefetch(ctx, char, em)
 
 
     @commands.command()
@@ -596,11 +457,6 @@ class ImageCog(commands.Cog):
                     sbooru_img = await ctx.send(embed=em)
 
 
-
-                        
-
-
-
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def tenshi2(self, ctx):
@@ -647,7 +503,6 @@ class ImageCog(commands.Cog):
                     await ctx.send(str(pic))
                     print(pic)
                     print(msg2)
-
 
 
     @commands.command()
@@ -729,7 +584,6 @@ class ImageCog(commands.Cog):
                     sbooru_img = await ctx.send(embed=em)
 
 
-
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def tenshi4(self, ctx):
@@ -781,238 +635,28 @@ class ImageCog(commands.Cog):
                     sbooru_img = await ctx.send(embed=em)
 
 
-
-
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def sakuya(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0xc7c7c7)
-        char = 'izayoi_sakuya+-id:5237460+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="RNG", value=score_rng, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        char = 'izayoi_sakuya+-id:5237460+score:>='
+        await self.imagefetch(ctx, char, em)
 
                     
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def cirno(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0x00e5ff)
-        char = 'cirno+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="RNG", value=score_rng, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        char = 'cirno+score:>='
+        await self.imagefetch(ctx, char, em)
 
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def meiling(self, ctx):
-        score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0x04b548)
-        char = 'hong_meiling+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        char = 'hong_meiling+score:>='
+        await self.imagefetch(ctx, char, em)
 
 
     @commands.command()
@@ -1020,75 +664,7 @@ class ImageCog(commands.Cog):
     async def flandre(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xb50404)
         char = 'flandre_scarlet'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1096,76 +672,7 @@ class ImageCog(commands.Cog):
     async def rumia(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xf5da42)
         char = 'rumia'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1173,233 +680,23 @@ class ImageCog(commands.Cog):
     async def rinnosuke(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'morichika_rinnosuke'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.4)
-                    sbooru_img = await ctx.send(embed=em)
-                    
+        await self.imagefetch(ctx, char, em, 0)
 
-					
-					
-					
+
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def murasa(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'murasa_minamitsu'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-					
+        await self.imagefetch(ctx, char, em, 0)
 
-					
-					
-					
+
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def mamizou(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'futatsuiwa_mamizou'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-					
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1407,154 +704,15 @@ class ImageCog(commands.Cog):
     async def shou(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'toramaru_shou'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-                    
+        await self.imagefetch(ctx, char, em, 0)
 
-					
-					
-					
+
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def nemuno(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'sakata_nemuno'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1562,77 +720,7 @@ class ImageCog(commands.Cog):
     async def eternity(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'eternity_larva'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-					
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1640,230 +728,23 @@ class ImageCog(commands.Cog):
     async def narumi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'yatadera_narumi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
 
-					
-					
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def daiyousei(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x04b548)
         char = 'daiyousei'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
 
-					
-					
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def ringo(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xe2a81e)
         char = 'ringo_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1871,76 +752,7 @@ class ImageCog(commands.Cog):
     async def kosuzu(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'motoori_kosuzu'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -1948,76 +760,7 @@ class ImageCog(commands.Cog):
     async def akyuu(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'hieda_no_akyuu'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2025,76 +768,7 @@ class ImageCog(commands.Cog):
     async def hatate(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xb50480)
         char = 'himekaidou_hatate'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2102,77 +776,7 @@ class ImageCog(commands.Cog):
     async def mima(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'mima_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2180,77 +784,7 @@ class ImageCog(commands.Cog):
     async def sariel(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'sariel_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2258,77 +792,7 @@ class ImageCog(commands.Cog):
     async def yumemi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'okazaki_yumemi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2336,76 +800,7 @@ class ImageCog(commands.Cog):
     async def shinki(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'shinki'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-                        
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2413,76 +808,7 @@ class ImageCog(commands.Cog):
     async def lily(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'lily_white'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2490,76 +816,7 @@ class ImageCog(commands.Cog):
     async def shion(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x048cb5)
         char = 'yorigami_shion'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2567,76 +824,7 @@ class ImageCog(commands.Cog):
     async def joon(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xaa4fa0)
         char = "yorigami_jo'on"
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2644,76 +832,7 @@ class ImageCog(commands.Cog):
     async def seiran(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x6b87bd)
         char = 'seiran_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2721,76 +840,7 @@ class ImageCog(commands.Cog):
     async def koakuma(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x990000)
         char = 'koakuma'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2798,76 +848,7 @@ class ImageCog(commands.Cog):
     async def raiko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xd25859)
         char = 'horikawa_raiko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2875,76 +856,7 @@ class ImageCog(commands.Cog):
     async def okina(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xe69454)
         char = 'matara_okina'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -2952,76 +864,7 @@ class ImageCog(commands.Cog):
     async def mai(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x4e7764)
         char = 'teireida_mai'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3029,153 +872,15 @@ class ImageCog(commands.Cog):
     async def satono(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xe262b0)
         char = 'nishida_satono'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
-					
-					
-					
+
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def aunn(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'komano_aun'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3183,76 +888,7 @@ class ImageCog(commands.Cog):
     async def komachi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xd25859)
         char = 'onozuka_komachi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3260,74 +896,7 @@ class ImageCog(commands.Cog):
     async def wakasagihime(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'wakasagihime'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3335,76 +904,7 @@ class ImageCog(commands.Cog):
     async def seija(self, ctx):
         char = 'kijin_seija'
         em = discord.Embed(title='', description=' ', colour=0xaeb4c6)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'ǝƃɐɯI ɹǝʇɔɐɹɐɥƆ'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'ǝƃɐɯI ɹǝʇɔɐɹɐɥƆ'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name='ǝƃɐɯI ɹǝʇɔɐɹɐɥƆ')
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="ǝɔɹnos ǝƃɐɯI", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext_seija, value=sbooru_id, inline=True)
-                    em.add_field(name="suoᴉsuǝɯᴉp", value=img_width + "x" + img_height, inline=True)
-                    sbooru_img = await ctx.send(embed=em)
-                    #fix
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3412,76 +912,7 @@ class ImageCog(commands.Cog):
     async def toyohime(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x583b80)
         char = 'watatsuki_no_toyohime'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3489,76 +920,7 @@ class ImageCog(commands.Cog):
     async def yorihime(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xa84384)
         char = 'watatsuki_no_yorihime'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3566,76 +928,7 @@ class ImageCog(commands.Cog):
     async def renko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'usami_renko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3643,76 +936,7 @@ class ImageCog(commands.Cog):
     async def maribel(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'maribel_hearn'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3720,76 +944,7 @@ class ImageCog(commands.Cog):
     async def nue(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x000000)
         char = 'houjuu_nue'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3797,76 +952,7 @@ class ImageCog(commands.Cog):
     async def iku(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'nagae_iku'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3874,76 +960,7 @@ class ImageCog(commands.Cog):
     async def elly(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'elly_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -3951,76 +968,7 @@ class ImageCog(commands.Cog):
     async def kasen(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xfb959e)
         char = 'ibaraki_kasen'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4028,76 +976,7 @@ class ImageCog(commands.Cog):
     async def keine(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x574b8c)
         char = 'kamishirasawa_keine'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4105,76 +984,7 @@ class ImageCog(commands.Cog):
     async def konngara(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'konngara'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4182,76 +992,7 @@ class ImageCog(commands.Cog):
     async def yuyuko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xff40d9)
         char = 'saigyouji_yuyuko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4259,76 +1000,7 @@ class ImageCog(commands.Cog):
     async def aya(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xe58a53)
         char = 'shameimaru_aya'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4336,76 +1008,7 @@ class ImageCog(commands.Cog):
     async def nitori(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xb2daef)
         char = 'kawashiro_nitori'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4413,76 +1016,7 @@ class ImageCog(commands.Cog):
     async def sumireko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xaa6ad3)
         char = 'usami_sumireko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4490,76 +1024,7 @@ class ImageCog(commands.Cog):
     async def okuu(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x009917)
         char = 'reiuji_utsuho'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4567,76 +1032,7 @@ class ImageCog(commands.Cog):
     async def patchouli(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xc646e0)
         char = 'patchouli_knowledge'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4644,153 +1040,14 @@ class ImageCog(commands.Cog):
     async def youmu(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x79eb50)
         char = 'konpaku_youmu'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def koishi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x62f500)
         char = 'komeiji_koishi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4798,76 +1055,7 @@ class ImageCog(commands.Cog):
     async def mokou(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xf50000)
         char = 'fujiwara_no_mokou'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4875,76 +1063,7 @@ class ImageCog(commands.Cog):
     async def satori(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xa700f5)
         char = 'komeiji_satori'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -4952,76 +1071,7 @@ class ImageCog(commands.Cog):
     async def wan(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'inubashiri_momiji'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5029,76 +1079,7 @@ class ImageCog(commands.Cog):
     async def momiji(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'inubashiri_momiji'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-                    
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5106,76 +1087,7 @@ class ImageCog(commands.Cog):
     async def ran(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'yakumo_ran'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5183,76 +1095,7 @@ class ImageCog(commands.Cog):
     async def kagerou(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'imaizumi_kagerou'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5261,77 +1104,7 @@ class ImageCog(commands.Cog):
         score_rng = random.randint(0,5)
         em = discord.Embed(title='', description=' ', colour=0xf94aff)
         char = 'reisen_udongein_inaba+score:>=' + str(score_rng)
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5339,77 +1112,7 @@ class ImageCog(commands.Cog):
     async def reisen2(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x2291ba)
         char = 'reisen'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5417,77 +1120,7 @@ class ImageCog(commands.Cog):
     async def rei(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x2291ba)
         char = 'reisen'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-                    
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5495,76 +1128,7 @@ class ImageCog(commands.Cog):
     async def letty(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'letty_whiterock'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5572,75 +1136,7 @@ class ImageCog(commands.Cog):
     async def remilia(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xfd8cff)
         char = 'remilia_scarlet'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5648,76 +1144,7 @@ class ImageCog(commands.Cog):
     async def suwako(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'moriya_suwako'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5725,76 +1152,7 @@ class ImageCog(commands.Cog):
     async def shizuha(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'aki_shizuha'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5802,76 +1160,7 @@ class ImageCog(commands.Cog):
     async def sanae(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x24b343)
         char = 'kochiya_sanae'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5879,76 +1168,7 @@ class ImageCog(commands.Cog):
     async def clownpiece(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'clownpiece'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -5956,76 +1176,7 @@ class ImageCog(commands.Cog):
     async def yukari(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'yakumo_yukari'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6033,76 +1184,7 @@ class ImageCog(commands.Cog):
     async def yuuka(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x24b343)
         char = 'kazami_yuuka'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6110,76 +1192,7 @@ class ImageCog(commands.Cog):
     async def suika(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'ibuki_suika'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6187,153 +1200,14 @@ class ImageCog(commands.Cog):
     async def sekibanki(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'sekibanki'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def wriggle(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'wriggle_nightbug'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6341,76 +1215,7 @@ class ImageCog(commands.Cog):
     async def hina(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kagiyama_hina'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6418,76 +1223,7 @@ class ImageCog(commands.Cog):
     async def alice(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'alice_margatroid'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6495,76 +1231,7 @@ class ImageCog(commands.Cog):
     async def kyouko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kasodani_kyouko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6572,76 +1239,7 @@ class ImageCog(commands.Cog):
     async def kisume(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kisume'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6649,76 +1247,7 @@ class ImageCog(commands.Cog):
     async def nazrin(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'nazrin'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6765,7 +1294,7 @@ class ImageCog(commands.Cog):
                     if "pixiv" in sbooru_sauce:
                         #if "img" in sbooru_sauce:
                             #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
+                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
                             #print (pixivid)
                             #reconstruct pixiv url
                             #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
@@ -6789,12 +1318,10 @@ class ImageCog(commands.Cog):
                     #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
                     em.set_author(name='ᶜʰᵃʳᵃᶜᵗᵉʳ ᶦᵐᵃᵍᵉ')
                     em.set_image(url=booruappend + msg)
-                    em.add_field(name="ᴵᵐᵃᵍᵉ ˢᵒᵘʳᶜᵉ", value=sbooru_sauce, inline=False)    
+                    em.add_field(name="ᴵᵐᵃᵍᵉ ˢᵒᵘʳᶜᵉ", value=sbooru_sauce, inline=False)
                     em.add_field(name=idtext_sukuna, value=sbooru_id, inline=True)
-                    em.add_field(name="ᴰᶦᵐᵉⁿˢᶦᵒⁿˢ", value=img_width + "x" + img_height, inline=True)    
+                    em.add_field(name="ᴰᶦᵐᵉⁿˢᶦᵒⁿˢ", value=img_width + "x" + img_height, inline=True)
                     sbooru_img = await ctx.send(embed=em)
-
-
 
 
     @commands.command()
@@ -6802,78 +1329,7 @@ class ImageCog(commands.Cog):
     async def kokoro(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'hata_no_kokoro'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    print(msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.add_field(name="Creator ID", value=creator, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6881,76 +1337,7 @@ class ImageCog(commands.Cog):
     async def yoshika(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'miyako_yoshika'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -6958,76 +1345,7 @@ class ImageCog(commands.Cog):
     async def seiga(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kaku_seiga'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7035,76 +1353,7 @@ class ImageCog(commands.Cog):
     async def kogasa(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'tatara_kogasa'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7112,76 +1361,7 @@ class ImageCog(commands.Cog):
     async def futo(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'mononobe_no_futo'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7189,152 +1369,14 @@ class ImageCog(commands.Cog):
     async def miko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'toyosatomimi_no_miko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def tojiko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'soga_no_tojiko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7342,76 +1384,7 @@ class ImageCog(commands.Cog):
     async def mystia(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xff8ade)
         char = 'mystia_lorelei'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7419,76 +1392,7 @@ class ImageCog(commands.Cog):
     async def genjii(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'genjii_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7496,76 +1400,7 @@ class ImageCog(commands.Cog):
     async def byakuren(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x5b0082)
         char = 'hijiri_byakuren'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7573,76 +1408,7 @@ class ImageCog(commands.Cog):
     async def hecatia(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x940f0f)
         char = 'hecatia_lapislazuli'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7650,76 +1416,7 @@ class ImageCog(commands.Cog):
     async def junko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xfbd55a)
         char = 'junko_(touhou)'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char + '+-bofeng'
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name="Chang'e are you watching?")
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    #em.set_footer(text="Image Source: " + sbooru_sauce)    
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7727,76 +1424,7 @@ class ImageCog(commands.Cog):
     async def sagume(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xb4449c)
         char = 'kishin_sagume'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7804,153 +1432,15 @@ class ImageCog(commands.Cog):
     async def doremy(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'doremy_sweet'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
-
-					
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def minoriko(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'aki_minoriko'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -7958,153 +1448,15 @@ class ImageCog(commands.Cog):
     async def yamame(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kurodani_yamame'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
+        await self.imagefetch(ctx, char, em, 0)
 
-
-					
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def yuugi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'hoshiguma_yuugi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8112,76 +1464,7 @@ class ImageCog(commands.Cog):
     async def parsee(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'mizuhashi_parsee'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8189,76 +1472,7 @@ class ImageCog(commands.Cog):
     async def tewi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xcc7c9c)
         char = 'inaba_tewi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8266,76 +1480,7 @@ class ImageCog(commands.Cog):
     async def medicine(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xe37f7d)
         char = 'medicine_melancholy'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8343,76 +1488,7 @@ class ImageCog(commands.Cog):
     async def eiki(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x5b9c66)
         char = 'shiki_eiki'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8420,76 +1496,7 @@ class ImageCog(commands.Cog):
     async def orin(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'kaenbyou_rin'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8497,76 +1504,7 @@ class ImageCog(commands.Cog):
     async def kaguya(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xef61ff)
         char = 'houraisan_kaguya'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8574,76 +1512,7 @@ class ImageCog(commands.Cog):
     async def eirin(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'yagokoro_eirin'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8651,76 +1520,7 @@ class ImageCog(commands.Cog):
     async def kanako(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x977cac)
         char = 'yasaka_kanako'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8728,75 +1528,7 @@ class ImageCog(commands.Cog):
     async def chen(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'chen'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -8804,77 +1536,7 @@ class ImageCog(commands.Cog):
     async def star(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'star_sapphire'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
@@ -8923,83 +1585,12 @@ class ImageCog(commands.Cog):
                     sbooru_img = await ctx.send(embed=em)
 
 
-
-
     @commands.command()
     @commands.cooldown(rlimit_cmd, rlimit_time, commands.BucketType.user)
     async def luna(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'luna_child'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9007,76 +1598,7 @@ class ImageCog(commands.Cog):
     async def sunny(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'sunny_milk'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9084,76 +1606,7 @@ class ImageCog(commands.Cog):
     async def eika(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'ebisu_eika'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9161,76 +1614,7 @@ class ImageCog(commands.Cog):
     async def urumi(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'ushizaki_urumi'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9238,76 +1622,7 @@ class ImageCog(commands.Cog):
     async def kutaka(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0xdf9041)
         char = 'niwatari_kutaka'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9315,76 +1630,7 @@ class ImageCog(commands.Cog):
     async def lunasa(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'lunasa_prismriver'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9392,76 +1638,7 @@ class ImageCog(commands.Cog):
     async def lyrica(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'lyrica_prismriver'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()
@@ -9469,76 +1646,7 @@ class ImageCog(commands.Cog):
     async def merlin(self, ctx):
         em = discord.Embed(title='', description=' ', colour=0x42D4F4)
         char = 'merlin_prismriver'
-        #check if Tenshi has a flag enabled or not
-        moderate_role = discord.utils.get(ctx.guild.roles, name="tenko_moderatemode")
-        if moderate_role in ctx.guild.me.roles:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_moderate + '+' + char
-            embed_name = 'Character image'
-            em.set_footer(text="Moderate mode is enabled on this server, image may not be SFW")
-        else:
-            booruurl = 'http://' + booru + '/index.php?page=dapi&s=post&q=index&tags=' + boorutags_base + badtags_strict + badartists + '+' + char
-            embed_name = 'Character image'
-        async with aiohttp.ClientSession() as session:
-            async with session.get(booruurl) as r:
-                if r.status == 200:
-                    soup = BeautifulSoup(await r.text(), "lxml")
-                    num = int(soup.find('posts')['count'])
-                    maxpage = int(round(num/100))
-                    page = random.randint(0, maxpage)
-                    t = soup.find('posts')
-                    p = t.find_all('post')
-                    source = ((soup.find('post'))['source'])
-                    if num < 100:
-                        pic = p[random.randint(0,num-1)]
-                    elif page == maxpage:
-                        pic = p[random.randint(0,99)]
-                    else:
-                        pic = p[random.randint(0,99)]
-                    msg = pic['file_url']
-                    sbooru_id = pic['id']
-                    sbooru_tags = pic['tags']
-                    sbooru_sauce = pic['source']
-                    img_width = pic['width']
-                    img_height = pic['height']
-                    creator = pic['creator_id']
-                    if sbooru_sauce == '':
-                        sbooru_sauce = 'No source listed'
-                    if "hentai" in sbooru_sauce:
-                        sbooru_sauce = "Source hidden\n(NSFW website)"
-                    if "pixiv" in sbooru_sauce:
-                        #if "img" in sbooru_sauce:
-                            #extract pixiv id
-                            #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce) 
-                            #print (pixivid)
-                            #reconstruct pixiv url
-                            #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                        #else:
-                        sbooru_sauce = "[Pixiv](" + sbooru_sauce + ")"
-                    if "twitter" in sbooru_sauce:
-                        sbooru_sauce = "[Twitter](" + sbooru_sauce + ")"
-                    if "nicovideo" in sbooru_sauce:
-                        sbooru_sauce = "[NicoNico](" + sbooru_sauce + ")"
-                    if "deviantart" in sbooru_sauce:
-                        sbooru_sauce = "[DeviantArt](" + sbooru_sauce + ")"
-                    #try to detect pixiv direct image links
-                    #if "img" in sbooru_sauce:
-                        #extract pixiv id
-                        #pixivid = re.search('(?<!\d)(\d{8})(?!\d)', sbooru_sauce)
-                        #reconstruct pixiv url
-                        #sbooru_sauce = "[Pixiv](http://www.pixiv.net/member_illust.php?mode=medium&illust_id=" + pixivid.group(1) + ")"
-                    #else:
-                        #sbooru_sauce = "[Source](" + sbooru_sauce + ")"
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    #em.set_author(name='Character Image', icon_url=bot.user.avatar_url)
-                    em.set_author(name=embed_name)
-                    em.set_image(url=booruappend + msg)
-                    em.add_field(name="Image source", value=sbooru_sauce, inline=False)    
-                    em.add_field(name=idtext, value=sbooru_id, inline=True)
-                    em.add_field(name="Dimensions", value=img_width + "x" + img_height, inline=True)
-                    await asyncio.sleep(0.15)
-                    sbooru_img = await ctx.send(embed=em)
-                    
-
+        await self.imagefetch(ctx, char, em, 0)
 
 
     @commands.command()

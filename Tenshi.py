@@ -575,8 +575,6 @@ secure_random = random.SystemRandom()
 @bot.event
 async def on_message(message):
     # we do not want the bot to reply to itself
-    if message.author == bot.user:
-        return
     if message.author.bot:
         return
 
